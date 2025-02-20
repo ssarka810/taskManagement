@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jinzhu/gorm"
+	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
 var gormDb *gorm.DB
@@ -26,9 +27,19 @@ type Task struct {
 }
 
 type DatabaseDetails struct{
-
+	db *gorm.DB
+	User
+	Task
 }
-type Database interface{}
+type Database interface{
+	UserRegister(username, password string)error
+	GetUserByUsername(username string)(*User,error)
+	CreateTask(inputTask *Task)error
+	UpdateTask(inputTask *Task)error
+	DeleteTask(inputTask *Task)error
+	GetTasks()(*[]Task,error)
+	GetTaskByTaskId(taskId int32)(*Task,error)
+}
 
 func Init(host,port string)(*gorm.DB,error){
 	dns :=url.URL{
@@ -73,9 +84,67 @@ func Init(host,port string)(*gorm.DB,error){
 	)
 
 	return gormDb,nil
-
 }
 
 func GetDB()*gorm.DB{
 	return gormDb
 }
+
+func NewDatabase(db *gorm.DB)Database{
+	return &DatabaseDetails{
+		db: db,
+	}
+}
+
+func (store *DatabaseDetails)UserRegister(username, password string)error{
+	userdetails :=&User{
+		Username: username,
+		Password: password,
+	}
+	if err :=store.db.Create(userdetails).Error;err!=nil{
+		return err
+	}
+	return nil
+}
+func (store *DatabaseDetails)GetUserByUsername(username string)(*User,error){
+	userdetails :=&User{}
+	if err :=store.db.Where("username =?",username).First(userdetails).Error;err!=nil{
+		return userdetails,err
+	}
+	return userdetails,nil
+}
+
+func (store *DatabaseDetails)CreateTask(inputTask *Task)error{
+	if err :=store.db.Create(inputTask).Error;err!=nil{
+		return err
+	}
+	return nil
+}
+
+func (store *DatabaseDetails)UpdateTask(inputTask *Task)error{
+	if err :=store.db.Save(inputTask).Error;err!=nil{
+		return err
+	}
+	return nil
+}
+func (store *DatabaseDetails)DeleteTask(inputTask *Task)error{
+	if err :=store.db.Delete(inputTask).Error;err!=nil{
+		return err
+	}
+	return nil
+}
+func (store *DatabaseDetails)GetTasks()(*[]Task,error){
+	tasks :=&[]Task{}
+	if err :=store.db.Find(tasks).Error;err!=nil{
+		return tasks,err
+	}
+	return tasks,nil
+}
+func (store *DatabaseDetails)GetTaskByTaskId(taskId int32)(*Task,error){
+	tasks :=&Task{}
+	if err :=store.db.Find(tasks).Error;err!=nil{
+		return tasks,err
+	}
+	return tasks,nil
+}
+
